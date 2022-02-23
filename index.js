@@ -5,8 +5,9 @@ const debug = require('debug')('app:startup')
 const config = require('config')
 const morgan = require('morgan')
 const helmet = require('helmet')
-const { log, auth } = require('./logger')
-const Joi = require('joi')
+const log = require('./middleware/logger')
+const courses = require('./routes/courses')
+const home = require('./routes/home')
 const app = express()
 
 // Set view Engine for serverside dynamic html
@@ -25,6 +26,10 @@ app.use(express.static('public'))
 //Third-party Middlewares
 app.use(helmet())
 
+// Any route start with '/api/courses' will be handled by this router 'courses'
+app.use('/api/courses', courses)
+app.use('/', home)
+
 // Configuration
 /* console.log(`Application Name: ${config.get('name')}`)
 console.log(`Mail Server: ${config.get('mail.host')}`)
@@ -39,101 +44,7 @@ if (app.get('env') === 'development') {
 // DB work...
 // dbDebugger('Connected to the database...')
 
-app.use(auth)
-
 app.use(log) // custome middleware function imported from a module
-
-const courses = [
-  { id: 1, name: 'course1' },
-  { id: 2, name: 'course2' },
-  { id: 3, name: 'course3' }
-]
-
-app.get('/', (req, res) => {
-  // res.send('Hello World')
-  res.render('index', { title: 'My Express App', message: 'Hello' })
-})
-
-app.get('/api/courses', (req, res) => {
-  res.send(courses)
-})
-
-// Create a new course
-app.post('/api/courses', (req, res) => {
-  const { error } = validateCourse(req.body) //result.error
-  if (error) {
-    // 400 Bad Request
-    return res.status(400).send(error.details[0].message)
-  }
-
-  const course = {
-    id: courses.length + 1,
-    name: req.body.name
-  }
-
-  courses.push(course)
-  res.send(course)
-})
-
-// Update an existing course
-app.put('/api/courses/:id', (req, res) => {
-  // Look up the course
-  // If it does not exist, return 404
-  const course = courses.find(course => course.id === parseInt(req.params.id))
-  if (!course)
-    // If course is not found
-    return res.status(400).send('The course with the given id was not found')
-
-  // Validate
-  // If invalid, return 400 - Bad request
-  const { error } = validateCourse(req.body) //result.error
-  if (error) {
-    // 400 Bad Request
-    return res.status(400).send(error.details[0].message)
-  }
-
-  // Update course
-  course.name = req.body.name
-
-  // Return the updated course
-  res.send(course)
-})
-
-function validateCourse (course) {
-  const schema = {
-    name: Joi.string()
-      .min(3)
-      .required()
-  }
-
-  return Joi.validate(course, schema)
-}
-
-// /api/courses/1
-app.get('/api/courses/:id', (req, res) => {
-  // res.send(req.params) // Send the requested id of the course to the client
-  const course = courses.find(course => course.id === parseInt(req.params.id))
-  if (!course)
-    // If course is not found
-    return res.status(400).send('The course with the given id was not found')
-  res.send(course)
-})
-
-app.delete('/api/courses/:id', (req, res) => {
-  // Look up the course
-  // If it doesn't exist, return 404
-  const course = courses.find(course => course.id === parseInt(req.params.id))
-  if (!course)
-    // If course is not found
-    return res.status(400).send('The course with the given id was not found')
-
-  // Delete
-  const index = courses.indexOf(course)
-  courses.splice(index, 1)
-
-  // Return the same course
-  res.send(course)
-})
 
 // Env. Var: PORT
 const port = process.env.PORT || 3000
